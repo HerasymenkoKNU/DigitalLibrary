@@ -2,81 +2,84 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DigitalLibrary.Data;
 using DigitalLibrary.Models;
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.Data.SqlClient; // Додано для SqlException
+using Polly; // Додано для Retry Policy
 
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
-
-
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 
 builder.Services.AddDbContext<DigitalLibrary.Data.ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-
-
 builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 {
-    
     options.SignIn.RequireConfirmedAccount = false;
 })
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
 builder.Services.AddRazorPages();
 
-
 builder.Services.AddAuthentication()
     .AddGoogle(googleOptions =>
     {
-
         googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
         googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
     });
 
-
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// --- Оновлений блок авто-міграції ---
+try
 {
-    var services = scope.ServiceProvider;
-    var logger = services.GetRequiredService<ILogger<Program>>();
-    var dbContext = services.GetRequiredService<DigitalLibrary.Data.ApplicationDbContext>();
+    Console.WriteLine("[App Startup] Attempting to apply database migrations...");
 
-    int maxRetries = 10;
-    int delayInSeconds = 5;
-
-    for (int i = 0; i < maxRetries; i++)
+    if (string.IsNullOrEmpty(connectionString))
     {
-        try
-        {
-           
-            logger.LogInformation($"Attempting to connect to database (Attempt {i + 1}/{maxRetries})...");
-            dbContext.Database.Migrate();
-            logger.LogInformation("Database migration successful!");
-            break; 
-        }
-        catch (Microsoft.Data.SqlClient.SqlException ex)
-        {
-          
-            logger.LogWarning(ex, $"Database connection failed. Retrying in {delayInSeconds} seconds...");
-            if (i == maxRetries - 1)
-            {
-                
-                logger.LogError("Could not connect to database after all retries. Application is shutting down.");
-                throw;
-            }
-           
-            System.Threading.Thread.Sleep(delayInSeconds * 1000);
-        }
+        Console.Error.WriteLine("[App Startup FATAL] Connection string 'DefaultConnection' is NULL or EMPTY.");
+        throw new InvalidOperationException("Connection string 'DefaultConnection' is NULL or EMPTY.");
     }
+
+    var retryPolicy = Policy
+        .Handle<SqlException>()
+        .WaitAndRetry(5, retryAttempt =>
+        {
+            var timeToWait = TimeSpan.FromSeconds(Math.Pow(2, retryAttempt));
+            Console.Error.WriteLine($"[App Startup WARNING] Database connection failed (SqlException). Retrying in {timeToWait.TotalSeconds} seconds...");
+            return timeToWait;
+        });
+
+    retryPolicy.Execute(() =>
+    {
+        Console.WriteLine("[App Startup] (RetryPolicy) Executing Database.Migrate()...");
+        using (var scope = app.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            dbContext.Database.Migrate();
+        }
+        Console.WriteLine("[App Startup] (RetryPolicy) Database.Migrate() successful.");
+    });
+
+    Console.WriteLine("[App Startup] Database migrations applied successfully.");
 }
+catch (Exception ex)
+{
+    Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    Console.Error.WriteLine("[App Startup FATAL ERROR] Failed to apply migrations after all retries.");
+    Console.Error.WriteLine($"[App Startup FATAL ERROR] Exception: {ex.GetType().Name}");
+    Console.Error.WriteLine($"[App Startup FATAL ERROR] Message: {ex.Message}");
+    Console.Error.WriteLine(ex.ToString());
+    Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    throw;
+}
+// --- Кінець оновленого блоку ---
+
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-
     app.UseHsts();
 }
 
@@ -85,15 +88,13 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseAuthentication(); 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-app.MapRazorPages(); 
-
-
+app.MapRazorPages();
 
 app.Run();
