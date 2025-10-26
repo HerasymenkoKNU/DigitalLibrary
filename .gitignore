@@ -1,9 +1,4 @@
-﻿# C# source files
-*.cs
-*.sln
-*.csproj
-
-# User-specific files
+﻿# User-specific files
 *.suo
 *.user
 *.userosscache
@@ -26,15 +21,6 @@ bld/
 # Visual Studio files
 .vs/
 Properties/launchSettings.json
-
-# Docker files
-docker-compose.yml
-Dockerfile
-.env
-
-# Secrets (bad practice, but for lab it's ok to commit)
-# appsettings.json
-# appsettings.Development.json
 
 # Mac/Linux files
 .DS_Store
