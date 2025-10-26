@@ -2,30 +2,25 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DigitalLibrary.Data;
 using DigitalLibrary.Models;
-using Microsoft.Data.SqlClient;
+using Npgsql; 
 using Polly;
-
-// Обгортаємо АБСОЛЮТНО ВСЕ в try-catch
+т
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    // --- ПЕРЕВІРКА РЯДКА ПІДКЛЮЧЕННЯ ---
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (string.IsNullOrEmpty(connectionString))
     {
-        Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         Console.Error.WriteLine("[App Startup FATAL ERROR] Connection string 'DefaultConnection' is NULL or EMPTY.");
-        Console.Error.WriteLine("CHECK YOUR 'ConnectionStrings__DefaultConnection' VARIABLE IN CLOUD RUN!");
-        Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         throw new InvalidOperationException("Connection string 'DefaultConnection' is NULL or EMPTY.");
     }
-    // --- КІНЕЦЬ ПЕРЕВІРКИ ---
 
     builder.Services.AddControllersWithViews();
 
+    
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
+        options.UseNpgsql(connectionString));
 
     builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     {
@@ -38,19 +33,20 @@ try
     builder.Services.AddAuthentication()
         .AddGoogle(googleOptions =>
         {
+            
             googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
             googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
         });
 
     var app = builder.Build();
 
-    // --- Блок авто-міграції ---
+  
     var retryPolicy = Policy
-        .Handle<SqlException>()
+        .Handle<NpgsqlException>()
         .WaitAndRetry(5, retryAttempt =>
         {
             var timeToWait = TimeSpan.FromSeconds(Math.Pow(2, retryAttempt));
-            Console.Error.WriteLine($"[App Startup WARNING] Database connection failed (SqlException). Retrying in {timeToWait.TotalSeconds} seconds...");
+            Console.Error.WriteLine($"[App Startup WARNING] Database connection failed (NpgsqlException). Retrying in {timeToWait.TotalSeconds} seconds...");
             return timeToWait;
         });
 
@@ -66,7 +62,6 @@ try
     });
 
     Console.WriteLine("[App Startup] Database migrations applied successfully.");
-    // --- Кінець блоку авто-міграції ---
 
     if (!app.Environment.IsDevelopment())
     {
@@ -92,7 +87,6 @@ try
 }
 catch (Exception ex)
 {
-    // Цей catch тепер "з-ловить" АБСОЛЮТНО ВСЕ
     Console.Error.WriteLine($"[App Startup UBER-FATAL ERROR] {ex.GetType().Name}: {ex.Message}");
     Console.Error.WriteLine(ex.ToString());
     throw;
