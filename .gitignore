@@ -1,0 +1,40 @@
+﻿# C# source files
+*.cs
+*.sln
+*.csproj
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio files
+.vs/
+Properties/launchSettings.json
+
+# Docker files
+docker-compose.yml
+Dockerfile
+.env
+
+# Secrets (bad practice, but for lab it's ok to commit)
+# appsettings.json
+# appsettings.Development.json
+
+# Mac/Linux files
+.DS_Store
