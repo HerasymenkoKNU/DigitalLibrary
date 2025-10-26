@@ -2,46 +2,51 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DigitalLibrary.Data;
 using DigitalLibrary.Models;
-using Microsoft.Data.SqlClient; // Додано для SqlException
-using Polly; // Додано для Retry Policy
+using Microsoft.Data.SqlClient;
+using Polly;
 
-var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllersWithViews();
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-builder.Services.AddDbContext<DigitalLibrary.Data.ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
-
-builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
-{
-    options.SignIn.RequireConfirmedAccount = false;
-})
-    .AddEntityFrameworkStores<ApplicationDbContext>();
-
-builder.Services.AddRazorPages();
-
-builder.Services.AddAuthentication()
-    .AddGoogle(googleOptions =>
-    {
-        googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-        googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-    });
-
-var app = builder.Build();
-
-// --- Оновлений блок авто-міграції ---
 try
 {
-    Console.WriteLine("[App Startup] Attempting to apply database migrations...");
+    var builder = WebApplication.CreateBuilder(args);
 
+   
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (string.IsNullOrEmpty(connectionString))
     {
-        Console.Error.WriteLine("[App Startup FATAL] Connection string 'DefaultConnection' is NULL or EMPTY.");
+
+        Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        Console.Error.WriteLine("[App Startup FATAL ERROR] Connection string 'DefaultConnection' is NULL or EMPTY.");
+        Console.Error.WriteLine("CHECK YOUR 'ConnectionStrings__DefaultConnection' VARIABLE IN CLOUD RUN!");
+        Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         throw new InvalidOperationException("Connection string 'DefaultConnection' is NULL or EMPTY.");
     }
+  
 
+    builder.Services.AddControllersWithViews();
+
+    
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
+
+    builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = false;
+    })
+        .AddEntityFrameworkStores<ApplicationDbContext>();
+
+    builder.Services.AddRazorPages();
+
+    builder.Services.AddAuthentication()
+        .AddGoogle(googleOptions =>
+        {
+            googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
+            googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+        });
+
+    var app = builder.Build();
+
+    
     var retryPolicy = Policy
         .Handle<SqlException>()
         .WaitAndRetry(5, retryAttempt =>
@@ -63,38 +68,35 @@ try
     });
 
     Console.WriteLine("[App Startup] Database migrations applied successfully.");
+   
+
+
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Home/Error");
+        app.UseHsts();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseStaticFiles();
+
+    app.UseRouting();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllerRoute(
+        name: "default",
+        pattern: "{controller=Home}/{action=Index}/{id?}");
+
+    app.MapRazorPages();
+
+    app.Run();
 }
 catch (Exception ex)
 {
-    Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    Console.Error.WriteLine("[App Startup FATAL ERROR] Failed to apply migrations after all retries.");
-    Console.Error.WriteLine($"[App Startup FATAL ERROR] Exception: {ex.GetType().Name}");
-    Console.Error.WriteLine($"[App Startup FATAL ERROR] Message: {ex.Message}");
+  
+    Console.Error.WriteLine($"[App Startup UBER-FATAL ERROR] {ex.GetType().Name}: {ex.Message}");
     Console.Error.WriteLine(ex.ToString());
-    Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    throw;
+    throw; 
 }
-// --- Кінець оновленого блоку ---
-
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-
-app.MapRazorPages();
-
-app.Run();
