@@ -5,27 +5,25 @@ using DigitalLibrary.Models;
 using Microsoft.Data.SqlClient;
 using Polly;
 
-
+// Обгортаємо АБСОЛЮТНО ВСЕ в try-catch
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-   
+    // --- ПЕРЕВІРКА РЯДКА ПІДКЛЮЧЕННЯ ---
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (string.IsNullOrEmpty(connectionString))
     {
-
         Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         Console.Error.WriteLine("[App Startup FATAL ERROR] Connection string 'DefaultConnection' is NULL or EMPTY.");
         Console.Error.WriteLine("CHECK YOUR 'ConnectionStrings__DefaultConnection' VARIABLE IN CLOUD RUN!");
         Console.Error.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         throw new InvalidOperationException("Connection string 'DefaultConnection' is NULL or EMPTY.");
     }
-  
+    // --- КІНЕЦЬ ПЕРЕВІРКИ ---
 
     builder.Services.AddControllersWithViews();
 
-    
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(connectionString));
 
@@ -46,7 +44,7 @@ try
 
     var app = builder.Build();
 
-    
+    // --- Блок авто-міграції ---
     var retryPolicy = Policy
         .Handle<SqlException>()
         .WaitAndRetry(5, retryAttempt =>
@@ -68,8 +66,7 @@ try
     });
 
     Console.WriteLine("[App Startup] Database migrations applied successfully.");
-   
-
+    // --- Кінець блоку авто-міграції ---
 
     if (!app.Environment.IsDevelopment())
     {
@@ -95,8 +92,8 @@ try
 }
 catch (Exception ex)
 {
-  
+    // Цей catch тепер "з-ловить" АБСОЛЮТНО ВСЕ
     Console.Error.WriteLine($"[App Startup UBER-FATAL ERROR] {ex.GetType().Name}: {ex.Message}");
     Console.Error.WriteLine(ex.ToString());
-    throw; 
+    throw;
 }
