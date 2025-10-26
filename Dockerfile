@@ -22,7 +22,6 @@ COPY --from=build /root/.dotnet/tools /root/.dotnet/tools
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
 
-ENV ASPNETCORE_URLS=http://+:8080
-EXPOSE 8080
+
 
 ENTRYPOINT ["dotnet", "DigitalLibrary.dll"]
