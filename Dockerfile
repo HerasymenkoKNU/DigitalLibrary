@@ -13,9 +13,8 @@ RUN dotnet add DigitalLibrary.csproj package Polly --version 8.0.0
 COPY . .
 RUN dotnet publish "DigitalLibrary.csproj" -c Release -o /app/publish
 
-
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
-ENTRYPOINT ["dotnet", "DigitalLibrary.dll"]Library.dll"]
+ENTRYPOINT ["dotnet", "DigitalLibrary.dll"]
