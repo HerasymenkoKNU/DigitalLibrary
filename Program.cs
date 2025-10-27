@@ -2,12 +2,23 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DigitalLibrary.Data;
 using DigitalLibrary.Models;
-using Npgsql; 
+using Npgsql;
 using Polly;
+using Microsoft.AspNetCore.HttpOverrides; 
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+  
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+   
 
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (string.IsNullOrEmpty(connectionString))
@@ -18,7 +29,7 @@ try
 
     builder.Services.AddControllersWithViews();
 
-    
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(connectionString));
 
@@ -33,14 +44,17 @@ try
     builder.Services.AddAuthentication()
         .AddGoogle(googleOptions =>
         {
-            
+
             googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
             googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
         });
 
     var app = builder.Build();
 
-  
+   
+    app.UseForwardedHeaders();
+ 
+
     var retryPolicy = Policy
         .Handle<NpgsqlException>()
         .WaitAndRetry(5, retryAttempt =>
