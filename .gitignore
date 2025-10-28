@@ -24,3 +24,6 @@ Properties/launchSettings.json
 
 # Mac/Linux files
 .DS_Store
+
+#  Railway/Docker Secrets
+.env 

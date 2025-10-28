@@ -2,34 +2,34 @@
 
 services:
 
+  db:
+    container_name: digital-library-db-postgres
+    image: postgres:latest 
+    environment:
+      - POSTGRES_DB=DigitalLibraryDb
+      - POSTGRES_USER=sa
+    
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      
+      - "5432:5432" 
+    volumes:
+    
+    - postgres_data:/var/lib/postgresql
+
+  
   web:
     container_name: digital-library-web
- 
     build: .
     ports:
-     
       - "8080:8080"
-      
     environment:
- 
-      - ConnectionStrings__DefaultConnection=Server=db;Database=DigitalLibraryDb;User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
-    
-      - Authentication__Google__ClientId=145781155123-3bem58lk6j4594r2jif3eqfgenvc47tj.apps.googleusercontent.com
-      - Authentication__Google__ClientSecret=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
-   
+                         
+      - ConnectionStrings__DefaultConnection=Host=digital-library-db-postgres;Port=5432;Database=DigitalLibraryDb;Username=sa;Password=${DB_PASSWORD}
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
     depends_on:
       - db
 
- 
-  db:
-    container_name: digital-library-db
- 
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    ports:
-     
-      - "1433:1433"
-    environment:
-   
-      - ACCEPT_EULA=Y
-    
-      - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+volumes:
+  postgres_data:
